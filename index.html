@@ -115,405 +115,440 @@
 	<h1>League of Legends Data Visualizer</h1>
 
     <label class="container">GAMES PLAYED
-        <input type="radio" checked="checked" name="radio">
+        <input type="radio" name="radio" value=1 onclick="myFunction(this.value)">
         <span class="checkmark"></span>
     </label>
 
     <label class="container">WIN RATE
-        <input type="radio" name="radio">
+        <input type="radio" name="radio" value=2 onclick="myFunction(this.value)">
         <span class="checkmark"></span>
     </label>
 
-    <label class="container">K/D
-        <input type="radio" name="radio">
+    <label class="container">BAN RATE
+        <input type="radio" name="radio" value=3 onclick="myFunction(this.value)">
         <span class="checkmark"></span>
     </label>
 
 
-
-	<svg width="100%" height="700" font-family="sans-serif" font-size="10" text-anchor="middle"></svg>
-
+	<div id="mydiv">
+		<svg id="sv" width="100%" height="700" font-family="sans-serif" font-size="10" text-anchor="middle" fill="#eee"></svg>
+	</div>
 	<script src="js/d3.min.js"></script>
     <script src="js/d3-legend.min.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 	<script>
-		var mydata,champdata;
-		var topfifty = [];
-		var names = [];
 		$.ajaxSetup({
 			async: false
 		});
-		var data = [];
-		$.getJSON('data.json')
-				.then(function(data) {
 
-					mydata = data;
-					//console.log(mydata);
-					function compare(a,b) {
-						if(a.gamesPlayed < b.gamesPlayed) return 1;
-						if(a.gamesPlayed > b.gamesPlayed) return -1;
-						return 0;
+		function myFunction(x) {
+			// access properties using this keyword
 
-					}
-					mydata.sort(compare);
-					for(var i = 0; i < 100; i++){
-						topfifty.push(mydata[i]);
-					}
-				})
-				.fail(function() {
+			var checkedValue = x;
 
-					console.log("error");
-				});
+			var mydata,champdata;
+			var topfifty = [];
+			var names = [];
+			var data = [];
 
-		$.getJSON('champions.json')
-				.then(function(champ) {
+			$.getJSON('data.json')
+					.then(function(data) {
 
-					champdata = champ;
-					//console.log(champdata);
-					function getObject(theObject,id) {
-						var result = null;
-						if(theObject instanceof Array) {
-							for(var i = 0; i < theObject.length; i++) {
-								result = getObject(theObject[i],key);
-								if (result) {
-									break;
-								}
+						mydata = data;
+						if(checkedValue == 1) {
+							function compare(a, b) {
+								if (a.gamesPlayed < b.gamesPlayed) return 1;
+								if (a.gamesPlayed > b.gamesPlayed) return -1;
+								return 0;
+
 							}
 						}
-						else
-						{
-							for(var prop in theObject) {
-								//console.log(prop + ': ' + theObject[prop]);
-								if(prop == 'id') {
-									if(theObject[prop] == key) {
-										return theObject;
-									}
-								}
-								if(theObject[prop] instanceof Object || theObject[prop] instanceof Array) {
-									result = getObject(theObject[prop],key);
+						if(checkedValue == 2){
+							function compare(a, b) {
+								if (a.winRate < b.winRate) return 1;
+								if (a.winRate > b.winRate) return -1;
+								return 0;
+
+							}
+						}
+						if(checkedValue == 3){
+							function compare(a, b) {
+								if (a.banRate < b.banRate) return 1;
+								if (a.banRate > b.banRate) return -1;
+								return 0;
+
+							}
+						}
+						mydata.sort(compare);
+						for(var i = 0; i < 134; i++){
+							topfifty.push(mydata[i]);
+						}
+					})
+					.fail(function() {
+
+						console.log("error");
+					});
+
+			$.getJSON('champions.json')
+					.then(function(champ) {
+
+						champdata = champ;
+						function getObject(theObject,id) {
+							var result = null;
+							if(theObject instanceof Array) {
+								for(var i = 0; i < theObject.length; i++) {
+									result = getObject(theObject[i],key);
 									if (result) {
 										break;
 									}
 								}
 							}
-						}
-						return result;
-					}
-					for(i in topfifty){
-						var obj = new Object()
-						var key = topfifty[i].championId;
-						obj = getObject(champdata,key);
-						names[i] = obj.key;
-					};
-
-					for(i in topfifty){
-						var games = topfifty[i].gamesPlayed;
-						var states ="Role: " + topfifty[i].role;
-						var name = names[i];
-						data[i]=({
-							cat:topfifty[i].role,
-							name: name,
-							value:games,
-							icon:'img/'+name+'.png',
-							desc:states
-						});
-					};
-
-
-					var svg = d3.select('svg');
-					var width = document.body.clientWidth; // get width in pixels
-					var height = +svg.attr('height');
-					var centerX = width * 0.5;
-					var centerY = height * 0.5;
-					var strength = 0.05;
-					var focusedNode;
-					var format = d3.format(',d');
-
-					var scaleColor = d3.scaleOrdinal(d3.schemeCategory20);
-
-					// use pack to calculate radius of the circle
-					var pack = d3.pack()
-							.size([width , height ])
-							.padding(1.5);
-
-					var forceCollide = d3.forceCollide(d => d.r + 1);
-
-					// use the force
-					var simulation = d3.forceSimulation()
-					// .force('link', d3.forceLink().id(d => d.id))
-							.force('charge', d3.forceManyBody())
-							.force('collide', forceCollide)
-							// .force('center', d3.forceCenter(centerX, centerY))
-							.force('x', d3.forceX(centerX ).strength(strength))
-							.force('y', d3.forceY(centerY ).strength(strength));
-
-					// reduce number of circles on mobile screen due to slow computation
-					if ('matchMedia' in window && window.matchMedia('(max-device-width: 767px)').matches) {
-						data = data.filter(el => {
-							return el.value >= 50;
-						});
-					}
-
-					var root = d3.hierarchy({ children: data })
-							.sum(d => d.value);
-					console.log(data);
-					// we use pack() to automatically calculate radius conveniently only
-					// and get only the leaves
-					var nodes = pack(root).leaves().map(node => {
-						console.log('node:', node.x, (node.x - centerX) * 2);
-						const data = node.data;
-						console.log(data);
-						return {
-							x: centerX + (node.x - centerX) * 3, // magnify start position to have transition to center movement
-							y: centerY + (node.y - centerY) * 3,
-							r: 0, // for tweening
-							radius: node.r, //original radius
-							id: data.cat + '.' + (data.name.replace(/\s/g, '-')),
-							cat: data.cat,
-							name: data.name,
-							value: data.value,
-							icon: data.icon,
-							desc: data.desc,
-						}
-					});
-					simulation.nodes(nodes).on('tick', ticked);
-
-					svg.style('background-color', '#eee');
-					var node = svg.selectAll('.node')
-							.data(nodes)
-							.enter().append('g')
-							.attr('class', 'node')
-							.call(d3.drag()
-									.on('start', (d) => {
-										if (!d3.event.active) simulation.alphaTarget(0.2).restart();
-										d.fx = d.x;
-										d.fy = d.y;
-									})
-									.on('drag', (d) => {
-										d.fx = d3.event.x;
-										d.fy = d3.event.y;
-									})
-									.on('end', (d) => {
-										if (!d3.event.active) simulation.alphaTarget(0);
-										d.fx = null;
-										d.fy = null;
-									}));
-
-					node.append('circle')
-							.attr('id', d => d.id)
-							.attr('r', 0)
-							.style('fill', d => scaleColor(d.cat))
-							.transition().duration(2000).ease(d3.easeElasticOut)
-							.tween('circleIn', (d) => {
-								var i = d3.interpolateNumber(0, d.radius);
-								return (t) => {
-									d.r = i(t);
-									simulation.force('collide', forceCollide);
-								}
-							})
-
-					node.append('clipPath')
-							.attr('id', d => `clip-${d.id}`)
-							.append('use')
-							.attr('xlink:href', d => `#${d.id}`);
-
-					// display text as circle icon
-					node.filter(d => !String(d.icon).includes('img/'))
-							.append('text')
-							.classed('node-icon', true)
-							.attr('clip-path', d => `url(#clip-${d.id})`)
-							.selectAll('tspan')
-							.data(d => d.icon.split(';'))
-							.enter()
-							.append('tspan')
-							.attr('x', 0)
-							.attr('y', (d, i, nodes) => (13 + (i - nodes.length / 2 - 0.5) * 10))
-							.text(name => name);
-
-					// display image as circle icon
-					node.filter(d => String(d.icon).includes('img/'))
-							.append('image')
-							.classed('node-icon', true)
-							.attr('clip-path', d => `url(#clip-${d.id})`)
-							.attr('xlink:href', d => d.icon)
-							.attr('x', d => - d.radius * 0.7)
-							.attr('y', d => - d.radius * 0.7)
-							.attr('height', d => d.radius * 2 * 0.7)
-							.attr('width', d => d.radius * 2 * 0.7)
-
-					node.append('title')
-							.text(d => (d.cat + '::' + d.name + '\n' + format(d.value)));
-
-
-					var legendOrdinal = d3.legendColor()
-							.scale(scaleColor)
-							.shape('circle');
-
-					 // Commented by Harita S.
-					 var legend = svg.append('g')
-					 .classed('legend-color', true)
-					 .attr('text-anchor', 'start')
-					 .attr('transform','translate(20,30)')
-					 .style('font-size','12px')
-					 .call(legendOrdinal);
-
-					var sizeScale = d3.scaleOrdinal()
-							.domain(['less use', 'more use'])
-							.range([5, 10] );
-
-					var legendSize = d3.legendSize()
-							.scale(sizeScale)
-							.shape('circle')
-							.shapePadding(10)
-							.labelAlign('end');
-
-					 // Commented by Harita S.
-					 var legend2 = svg.append('g')
-					 .classed('legend-size', true)
-					 .attr('text-anchor', 'start')
-					 .attr('transform', 'translate(150, 25)')
-					 .style('font-size', '12px')
-					 .call(legendSize);
-
-
-					/*
-					 <foreignObject class="circle-overlay" x="10" y="10" width="100" height="150">
-					 <div class="circle-overlay__inner">
-					 <h2 class="circle-overlay__title">ReactJS</h2>
-					 <p class="circle-overlay__body">Lorem ipsum dolor sit amet, consectetur adipisicing elit. Ullam, sunt, aspernatur. Autem repudiandae, laboriosam. Nulla quidem nihil aperiam dolorem repellendus pariatur, quaerat sed eligendi inventore ipsa natus fugiat soluta doloremque!</p>
-					 </div>
-					 </foreignObject>
-					 */
-					var infoBox = node.append('foreignObject')
-							.classed('circle-overlay hidden', true)
-							.attr('x', -350 * 0.5 * 0.8)
-							.attr('y', -350 * 0.5 * 0.8)
-							.attr('height', 350 * 0.8)
-							.attr('width', 350 * 0.8)
-							.append('xhtml:div')
-							.classed('circle-overlay__inner', true);
-
-					infoBox.append('h2')
-							.classed('circle-overlay__title', true)
-							.text(d => d.name);
-
-					infoBox.append('p')
-							.classed('circle-overlay__body', true)
-							.html(d => d.desc);
-
-
-					node.on('click', (currentNode) => {
-						d3.event.stopPropagation();
-						console.log('currentNode', currentNode);
-						var currentTarget = d3.event.currentTarget; // the <g> el
-
-						if (currentNode === focusedNode) {
-							// no focusedNode or same focused node is clicked
-							return;
-						}
-						var lastNode = focusedNode;
-						focusedNode = currentNode;
-
-						simulation.alphaTarget(0.2).restart();
-						// hide all circle-overlay
-						d3.selectAll('.circle-overlay').classed('hidden', true);
-						d3.selectAll('.node-icon').classed('node-icon--faded', false);
-
-						// don't fix last node to center anymore
-						if (lastNode) {
-							lastNode.fx = null;
-							lastNode.fy = null;
-							node.filter((d, i) => i === lastNode.index)
-									.transition().duration(2000).ease(d3.easePolyOut)
-									.tween('circleOut', () => {
-										var irl = d3.interpolateNumber(lastNode.r, lastNode.radius);
-										return (t) => {
-											lastNode.r = irl(t);
+							else
+							{
+								for(var prop in theObject) {
+									//console.log(prop + ': ' + theObject[prop]);
+									if(prop == 'id') {
+										if(theObject[prop] == key) {
+											return theObject;
 										}
-									})
-									.on('interrupt', () => {
-										lastNode.r = lastNode.radius;
-									});
+									}
+									if(theObject[prop] instanceof Object || theObject[prop] instanceof Array) {
+										result = getObject(theObject[prop],key);
+										if (result) {
+											break;
+										}
+									}
+								}
+							}
+							return result;
 						}
+						for(i in topfifty){
+							var obj = new Object()
+							var key = topfifty[i].championId;
+							obj = getObject(champdata,key);
+							names[i] = obj.key;
+						};
 
-						// if (!d3.event.active) simulation.alphaTarget(0.5).restart();
+						for(i in topfifty){
+							if(checkedValue ==1 ) var games = topfifty[i].gamesPlayed;
+							if(checkedValue ==2) var games = topfifty[i].winRate*100;
+							if(checkedValue ==3) var games = topfifty[i].banRate*100;
+							var states ="Role: " + topfifty[i].role;
+							var name = names[i];
+							data[i]=({
+								cat:topfifty[i].role,
+								name: name,
+								value:games,
+								icon:'img/'+name+'.png',
+								desc:states
+							});
+						};
+						console.log(data);
+						updata(data);
+					})
 
-						d3.transition().duration(2000).ease(d3.easePolyOut)
-								.tween('moveIn', () => {
-									console.log('tweenMoveIn', currentNode);
-									var ix = d3.interpolateNumber(currentNode.x, centerX);
-									var iy = d3.interpolateNumber(currentNode.y, centerY);
-									var ir = d3.interpolateNumber(currentNode.r, centerY * 0.5);
-									return function (t) {
-										// console.log('i', ix(t), iy(t));
-										currentNode.fx = ix(t);
-										currentNode.fy = iy(t);
-										currentNode.r = ir(t);
-										simulation.force('collide', forceCollide);
-									};
-								})
-								.on('end', () => {
-									simulation.alphaTarget(0);
-									var $currentGroup = d3.select(currentTarget);
-									$currentGroup.select('.circle-overlay')
-											.classed('hidden', false);
-									$currentGroup.select('.node-icon')
-											.classed('node-icon--faded', true);
+					.fail(function() {
 
-								})
-								.on('interrupt', () => {
-									console.log('move interrupt', currentNode);
-									currentNode.fx = null;
-									currentNode.fy = null;
-									simulation.alphaTarget(0);
-								});
-
+						console.log("error1");
 					});
 
-					// blur
-					d3.select(document).on('click', () => {
-						var target = d3.event.target;
-						// check if click on document but not on the circle overlay
-						if (!target.closest('#circle-overlay') && focusedNode) {
-							focusedNode.fx = null;
-							focusedNode.fy = null;
-							simulation.alphaTarget(0.2).restart();
-							d3.transition().duration(2000).ease(d3.easePolyOut)
-									.tween('moveOut', function () {
-										console.log('tweenMoveOut', focusedNode);
-										var ir = d3.interpolateNumber(focusedNode.r, focusedNode.radius);
-										return function (t) {
-											focusedNode.r = ir(t);
-											simulation.force('collide', forceCollide);
-										};
-									})
-									.on('end', () => {
-										focusedNode = null;
-										simulation.alphaTarget(0);
-									})
-									.on('interrupt', () => {
-										simulation.alphaTarget(0);
-									});
+		};
+	function updata(data) {
 
-							// hide all circle-overlay
-							d3.selectAll('.circle-overlay').classed('hidden', true);
-							d3.selectAll('.node-icon').classed('node-icon--faded', false);
+		//font-family="sans-serif" font-size="10" text-anchor="middle"
+	var svg = d3.select('svg');
+		svg.remove();
+		svg = d3.selectAll("body").append("svg");
+		svg.attr("cx",40)
+				.attr("width","100%")
+				.attr("height","700")
+				.attr("font-family","sans=serif")
+				.attr("font-size","10")
+				.attr("text-anchor","middle");
+	var width = document.body.clientWidth; // get width in pixels
+	var height = +svg.attr('height');
+	var centerX = width * 0.5;
+	var centerY = height * 0.5;
+	var strength = 0.05;
+	var focusedNode;
+	var format = d3.format(',d');
+
+	var scaleColor = d3.scaleOrdinal(d3.schemeCategory20);
+
+	// use pack to calculate radius of the circle
+	var pack = d3.pack()
+			.size([width , height ])
+			.padding(1.5);
+
+	var forceCollide = d3.forceCollide(d => d.r + 1);
+
+	// use the force
+	var simulation = d3.forceSimulation()
+	// .force('link', d3.forceLink().id(d => d.id))
+			.force('charge', d3.forceManyBody())
+			.force('collide', forceCollide)
+			// .force('center', d3.forceCenter(centerX, centerY))
+			.force('x', d3.forceX(centerX ).strength(strength))
+			.force('y', d3.forceY(centerY ).strength(strength));
+
+	// reduce number of circles on mobile screen due to slow computation
+	if ('matchMedia' in window && window.matchMedia('(max-device-width: 767px)').matches) {
+		data = data.filter(el => {
+			return el.value >= 50;
+		});
+	}
+	var root = d3.hierarchy({ children: data })
+			.sum(d => d.value);
+	// we use pack() to automatically calculate radius conveniently only
+	// and get only the leaves
+	var nodes = pack(root).leaves().map(node => {
+		console.log('node:', node.x, (node.x - centerX) * 2);
+		const data = node.data;
+		console.log(data);
+		return {
+			x: centerX + (node.x - centerX) * 3, // magnify start position to have transition to center movement
+			y: centerY + (node.y - centerY) * 3,
+			r: 0, // for tweening
+			radius: node.r, //original radius
+			id: data.cat + '.' + (data.name.replace(/\s/g, '-')),
+			cat: data.cat,
+			name: data.name,
+			value: data.value,
+			icon: data.icon,
+			desc: data.desc,
+		}
+	});
+	simulation.nodes(nodes).on('tick', ticked);
+	svg.style('background-color', '#eee');
+	var node = svg.selectAll('.node')
+			.data(nodes)
+			.enter().append('g')
+			.attr('class', 'node')
+			.call(d3.drag()
+					.on('start', (d) => {
+						if (!d3.event.active) simulation.alphaTarget(0.2).restart();
+						d.fx = d.x;
+						d.fy = d.y;
+					})
+					.on('drag', (d) => {
+						d.fx = d3.event.x;
+						d.fy = d3.event.y;
+					})
+					.on('end', (d) => {
+						if (!d3.event.active) simulation.alphaTarget(0);
+						d.fx = null;
+						d.fy = null;
+					}));
+
+
+	console.log(node);
+	node.append('circle')
+			.attr('id', d => d.id)
+			.attr('r', 0)
+			.style('fill', d => scaleColor(d.cat))
+			.transition().duration(2000).ease(d3.easeElasticOut)
+			.tween('circleIn', (d) => {
+				var i = d3.interpolateNumber(0, d.radius);
+				return (t) => {
+					d.r = i(t);
+					simulation.force('collide', forceCollide);
+				}
+			})
+
+	node.append('clipPath')
+			.attr('id', d => `clip-${d.id}`)
+			.append('use')
+			.attr('xlink:href', d => `#${d.id}`);
+
+	// display text as circle icon
+	node.filter(d => !String(d.icon).includes('img/'))
+			.append('text')
+			.classed('node-icon', true)
+			.attr('clip-path', d => `url(#clip-${d.id})`)
+			.selectAll('tspan')
+			.data(d => d.icon.split(';'))
+			.enter()
+			.append('tspan')
+			.attr('x', 0)
+			.attr('y', (d, i, nodes) => (13 + (i - nodes.length / 2 - 0.5) * 10))
+			.text(name => name);
+
+	// display image as circle icon
+	node.filter(d => String(d.icon).includes('img/'))
+			.append('image')
+			.classed('node-icon', true)
+			.attr('clip-path', d => `url(#clip-${d.id})`)
+			.attr('xlink:href', d => d.icon)
+			.attr('x', d => - d.radius * 0.7)
+			.attr('y', d => - d.radius * 0.7)
+			.attr('height', d => d.radius * 2 * 0.7)
+			.attr('width', d => d.radius * 2 * 0.7)
+
+	node.append('title')
+			.text(d => (d.cat + '::' + d.name + '\n' + d.value));
+
+	//node.exit().remove();
+	var legendOrdinal = d3.legendColor()
+			.scale(scaleColor)
+			.shape('circle');
+
+	// Commented by Harita S.
+	var legend = svg.append('g')
+			.classed('legend-color', true)
+			.attr('text-anchor', 'start')
+			.attr('transform','translate(20,30)')
+			.style('font-size','12px')
+			.call(legendOrdinal);
+
+	var sizeScale = d3.scaleOrdinal()
+			.domain(['less use', 'more use'])
+			.range([5, 10] );
+
+	var legendSize = d3.legendSize()
+			.scale(sizeScale)
+			.shape('circle')
+			.shapePadding(10)
+			.labelAlign('end');
+
+	var legend2 = svg.append('g')
+			.classed('legend-size', true)
+			.attr('text-anchor', 'start')
+			.attr('transform', 'translate(150, 25)')
+			.style('font-size', '12px')
+			.call(legendSize);
+
+		var infoBox = node.append('foreignObject')
+				.classed('circle-overlay hidden', true)
+				.attr('x', -350 * 0.5 * 0.8)
+				.attr('y', -350 * 0.5 * 0.8)
+				.attr('height', 350 * 0.8)
+				.attr('width', 350 * 0.8)
+				.append('xhtml:div')
+				.classed('circle-overlay__inner', true);
+
+		infoBox.append('h2')
+				.classed('circle-overlay__title', true)
+				.text(d => d.name);
+
+		infoBox.append('p')
+				.classed('circle-overlay__body', true)
+				.html(d => d.desc);
+	node.on('click', (currentNode) => {
+		d3.event.stopPropagation();
+		console.log('currentNode', currentNode);
+		var currentTarget = d3.event.currentTarget; // the <g> el
+
+		if (currentNode === focusedNode) {
+			// no focusedNode or same focused node is clicked
+			return;
+		}
+		var lastNode = focusedNode;
+		focusedNode = currentNode;
+
+		simulation.alphaTarget(0.2).restart();
+		// hide all circle-overlay
+		d3.selectAll('.circle-overlay').classed('hidden', true);
+		d3.selectAll('.node-icon').classed('node-icon--faded', false);
+
+		// don't fix last node to center anymore
+		if (lastNode) {
+			lastNode.fx = null;
+			lastNode.fy = null;
+			node.filter((d, i) => i === lastNode.index)
+					.transition().duration(2000).ease(d3.easePolyOut)
+					.tween('circleOut', () => {
+						var irl = d3.interpolateNumber(lastNode.r, lastNode.radius);
+						return (t) => {
+							lastNode.r = irl(t);
 						}
+					})
+					.on('interrupt', () => {
+						lastNode.r = lastNode.radius;
 					});
+		}
 
-					function ticked() {
-						node
-								.attr('transform', d => `translate(${d.x},${d.y})`)
-								.select('circle')
-								.attr('r', d => d.r);
-					}
+		// if (!d3.event.active) simulation.alphaTarget(0.5).restart();
 
+		d3.transition().duration(2000).ease(d3.easePolyOut)
+				.tween('moveIn', () => {
+					console.log('tweenMoveIn', currentNode);
+					var ix = d3.interpolateNumber(currentNode.x, centerX);
+					var iy = d3.interpolateNumber(currentNode.y, centerY);
+					var ir = d3.interpolateNumber(currentNode.r, centerY * 0.5);
+					return function (t) {
+						// console.log('i', ix(t), iy(t));
+						currentNode.fx = ix(t);
+						currentNode.fy = iy(t);
+						currentNode.r = ir(t);
+						simulation.force('collide', forceCollide);
+					};
+				})
+				.on('end', () => {
+					simulation.alphaTarget(0);
+					var $currentGroup = d3.select(currentTarget);
+					$currentGroup.select('.circle-overlay')
+							.classed('hidden', false);
+					$currentGroup.select('.node-icon')
+							.classed('node-icon--faded', true);
 
 				})
-				.fail(function() {
-
-					console.log("error1");
+				.on('interrupt', () => {
+					console.log('move interrupt', currentNode);
+					currentNode.fx = null;
+					currentNode.fy = null;
+					simulation.alphaTarget(0);
 				});
+
+	});
+
+	// blur
+	d3.select(document).on('click', () => {
+		var target = d3.event.target;
+		// check if click on document but not on the circle overlay
+		if (!target.closest('#circle-overlay') && focusedNode) {
+			focusedNode.fx = null;
+			focusedNode.fy = null;
+			simulation.alphaTarget(0.2).restart();
+			d3.transition().duration(2000).ease(d3.easePolyOut)
+					.tween('moveOut', function () {
+						console.log('tweenMoveOut', focusedNode);
+						var ir = d3.interpolateNumber(focusedNode.r, focusedNode.radius);
+						return function (t) {
+							focusedNode.r = ir(t);
+							simulation.force('collide', forceCollide);
+						};
+					})
+					.on('end', () => {
+						focusedNode = null;
+						simulation.alphaTarget(0);
+					})
+					.on('interrupt', () => {
+						simulation.alphaTarget(0);
+					});
+
+			// hide all circle-overlay
+			d3.selectAll('.circle-overlay').classed('hidden', true);
+			d3.selectAll('.node-icon').classed('node-icon--faded', false);
+		}
+	});
+	function ticked() {
+		node
+				.attr('transform', d => `translate(${d.x},${d.y})`)
+				.select('circle')
+				.attr('r', d => d.r);
+	}
+
+
+};
+		function reload(){
+			var container = document.getElementById("mydiv");
+			var content = container.innerHTML;
+			container.innerHTML= content;
+
+			//this line is to watch the result in console , you can remove it later
+			console.log("Refreshed");
+		}
+
 
 
 	</script>
