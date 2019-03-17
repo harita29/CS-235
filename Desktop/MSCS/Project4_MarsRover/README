@@ -1,0 +1,13 @@
+F1 - focus mouse on the selected terrain point
+F2 - start the rover animation
+0 - Default camera
+1 - Fix camera looking at rover
+2 - Following camera looking at rover from rear
+3 - Driver seat camera
+4 - Rear view camera
+BACKSPACE - delete selected point
+P - Start the Motion Path tool functionality.
+H - Show speed slider
+D - Draw path for rover to move around
+
+
